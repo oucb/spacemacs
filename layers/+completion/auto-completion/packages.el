@@ -227,7 +227,7 @@
       (spacemacs|add-toggle yasnippet
         :mode yas-minor-mode
         :documentation "Enable snippets."
-        :evil-leader "ty")
+        :evil-leader "yy")
 
       (spacemacs/add-to-hooks
        'spacemacs/force-yasnippet-off '(term-mode-hook

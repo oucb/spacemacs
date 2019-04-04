@@ -513,7 +513,7 @@ Headline^^            Visit entry^^               Filter^^                    Da
         "aop" 'org-projectile/capture
         "po" 'org-projectile/goto-todos)
       (with-eval-after-load 'org-capture
-        (require 'org-projectile)))
+	      (require 'org-projectile)))
     :config
     (if (file-name-absolute-p org-projectile-file)
         (progn
@@ -521,7 +521,8 @@ Headline^^            Visit entry^^               Filter^^                    Da
           (push (org-projectile:project-todo-entry
                  nil nil nil :empty-lines 1)
                 org-capture-templates))
-      (org-projectile:per-repo)
+      ;; fix the error "Symbol’s function definition is void: org-projectile:per-repo"
+      ;; (org-projectile:per-repo)
       (setq org-projectile:per-repo-filename org-projectile-file))))
 
 (defun org/init-ox-twbs ()

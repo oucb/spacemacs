@@ -14,8 +14,14 @@
 (defconst oucb-org-packages
   '(
     (org :location built-in)
+    ;; org-mac-link
     org-pomodoro
     deft
+    sound-wav
+    ox-freemind
+    ;; (blog-admin :location (recipe
+    ;;                        :fetcher github
+    ;;                        :repo "codefalling/blog-admin"))
     ;; org-tree-slide
     ;; ox-reveal
     ;; worf
@@ -26,7 +32,7 @@
 
 (defun oucb-org/post-init-org-pomodoro ()
   (progn
-    (add-hook 'org-pomodoro-finished-hook '(lambda () (oucb/growl-notification "Pomodoro Finished" "Have a break!" t)))
+    (add-hook 'org-pomodoro-finished-hook '(lambda () (oucb/growl-notification "Pomodoro Finished" "☕️Have a break!" t)))
     (add-hook 'org-pomodoro-short-break-finished-hook '(lambda () (oucb/growl-notification "Short Break" "Ready to Go?" t)))
     (add-hook 'org-pomodoro-long-break-finished-hook '(lambda () (oucb/growl-notification "Long Break" "Ready to Go?" t)))
     ))
@@ -38,12 +44,11 @@
   (add-hook 'org-mode-hook (lambda () (spacemacs/toggle-line-numbers-off)) 'append)
   (with-eval-after-load 'org
     (progn
-      
       (spacemacs|disable-company org-mode)
       (spacemacs/set-leader-keys-for-major-mode 'org-mode
         "," 'org-priority)
       (require 'org-compat)
-      (require 'org)
+      (require 'org nil t)
       ;; (add-to-list 'org-modules "org-habit")
       (add-to-list 'org-modules 'org-habit)
       (require 'org-habit)
@@ -84,6 +89,10 @@
 
       ;; (add-to-list 'auto-mode-alist '("\.org\\'" . org-mode))
 
+      (setq org-todo-keyword-faces '(("TODO" . "red")
+                                     ("STARTED" . "yellow")
+                                     ("DONE" . "green")))
+
       (setq org-todo-keywords
             (quote ((sequence "TODO(t)" "STARTED(s)" "|" "DONE(d!/!)")
                     (sequence "WAITING(w@/!)" "SOMEDAY(S)" "|" "CANCELLED(c@/!)" "MEETING(m)" "PHONE(p)"))))
@@ -104,7 +113,7 @@
                                   ;; keybinding for editing source code blocks
                                   ;; keybinding for inserting code blocks
                                   (local-set-key (kbd "C-c i s")
-                                                 'zilongshanren/org-insert-src-block)))
+                                                 'oucb/org-insert-src-block)))
       (require 'ox-publish)
       (add-to-list 'org-latex-classes '("ctexart" "\\documentclass[11pt]{ctexart}
                                         [NO-DEFAULT-PACKAGES]
@@ -168,29 +177,73 @@
 
       (setq org-latex-listings t)
 
+      (defun org-random-entry (&optional arg)
+        "Select and goto a random todo item from the global agenda"
+        (interactive "P")
+        (if org-agenda-overriding-arguments
+            (setq arg org-agenda-overriding-arguments))
+        (if (and (stringp arg) (not (string-match "\\S-" arg))) (setq arg nil))
+        (let* ((today (org-today))
+              (date (calendar-gregorian-from-absolute today))
+              (kwds org-todo-keywords-for-agenda)
+              (lucky-entry nil)
+              (completion-ignore-case t)
+              (org-agenda-buffer (when (buffer-live-p org-agenda-buffer)
+                org-agenda-buffer))
+              (org-select-this-todo-keyword
+                (if (stringp arg) arg
+                  (and arg (integerp arg) (> arg 0)
+                      (nth (1- arg) kwds))))
+              rtn rtnall files file pos marker buffer)
+          (when (equal arg '(4))
+            (setq org-select-this-todo-keyword
+                  (org-icompleting-read "Keyword (or KWD1|K2D2|...): "
+                                        (mapcar 'list kwds) nil nil)))
+          (and (equal 0 arg) (setq org-select-this-todo-keyword nil))
+          (catch 'exit
+            (org-compile-prefix-format 'todo)
+            (org-set-sorting-strategy 'todo)
+            (setq files (org-agenda-files nil 'ifmode)
+                  rtnall nil)
+            (while (setq file (pop files))
+              (catch 'nextfile
+                (org-check-agenda-file file)
+                (setq rtn (org-agenda-get-day-entries file date :todo))
+                (setq rtnall (append rtnall rtn))))
+
+            (when rtnall
+              (setq lucky-entry
+                    (nth (random
+                          (safe-length
+                          (setq entries rtnall)))
+                        entries))
+
+              (setq marker (or (get-text-property 0 'org-marker lucky-entry)
+                              (org-agenda-error)))
+              (setq buffer (marker-buffer marker))
+              (setq pos (marker-position marker))
+              (org-pop-to-buffer-same-window buffer)
+              (widen)
+              (goto-char pos)
+              (when (derived-mode-p 'org-mode)
+                (org-show-context 'agenda)
+                (save-excursion
+                  (and (outline-next-heading)
+                      (org-flag-heading nil))) ; show the next heading
+                (when (outline-invisible-p)
+                  (show-entry))                 ; display invisible text
+                (run-hooks 'org-agenda-after-show-hook))))))
+
       ;;reset subtask
       (setq org-default-properties (cons "RESET_SUBTASKS" org-default-properties))
 
       ;; (add-hook 'org-after-todo-state-change-hook 'org-subtask-reset)
 
+      ;; PlantUML 时序图
       (setq org-plantuml-jar-path
             (expand-file-name "~/.emacs.d/plantuml.jar"))
+      ;; ditta 画图
       (setq org-ditaa-jar-path "~/.emacs.d/ditaa.jar")
-
-      (org-babel-do-load-languages
-       'org-babel-load-languages
-       '((perl . t)
-         (ruby . t)
-         (sh . t)
-         (dot . t)
-         (js . t)
-         (latex .t)
-         (python . t)
-         (emacs-lisp . t)
-         (plantuml . t)
-         (C . t)
-         (ditaa . t)))
-
 
       (require 'ox-md nil t)
       ;; copy from chinese layer
@@ -209,8 +262,13 @@ unwanted space when exporting org-mode to html."
       ;; define the refile targets
       (setq org-agenda-file-note (expand-file-name "notes.org" org-agenda-dir))
       (setq org-agenda-file-gtd (expand-file-name "gtd.org" org-agenda-dir))
+      ; 记录生活中的重复性任务
+      (setq org-agenda-file-task (expand-file-name "task.org" org-agenda-dir))
       (setq org-agenda-file-journal (expand-file-name "journal.org" org-agenda-dir))
       (setq org-agenda-file-code-snippet (expand-file-name "snippet.org" org-agenda-dir))
+      ; 记录读书、电影清单等
+      (setq org-agenda-file-check (expand-file-name "check.org" org-agenda-dir))
+      (setq org-agenda-file-billing (expand-file-name "billing.org" org-agenda-dir))
       (setq org-default-notes-file (expand-file-name "gtd.org" org-agenda-dir))
       (setq org-agenda-files (list org-agenda-dir))
 
@@ -223,31 +281,46 @@ unwanted space when exporting org-mode to html."
       ;;http://www.howardism.org/Technical/Emacs/journaling-org.html
       ;;add multi-file journal
       (setq org-capture-templates
-            '(("t" "Todo" entry (file+headline org-agenda-file-gtd "Workspace")
+            '(("w" "Work" entry (file+headline org-agenda-file-gtd "Workspace")
                "* TODO [#B] %?\n  %i\n"
                :empty-lines 1)
-              ("n" "notes" entry (file+headline org-agenda-file-note "Quick notes")
-               "* %?\n  %i\n %U"
-               :empty-lines 1)
-              ("b" "Blog Ideas" entry (file+headline org-agenda-file-note "Blog Ideas")
-               "* TODO [#B] %?\n  %i\n %U"
-               :empty-lines 1)
-              ("s" "Code Snippet" entry
-               (file org-agenda-file-code-snippet)
-               "* %?\t%^g\n#+BEGIN_SRC %^{language}\n\n#+END_SRC")
-              ("w" "work" entry (file+headline org-agenda-file-gtd "EMQX")
+              ("e" "EMQ X" entry (file+headline org-agenda-file-gtd "EMQ X")
                "* TODO [#A] %?\n  %i\n %U"
                :empty-lines 1)
-              ("c" "Chrome" entry (file+headline org-agenda-file-note "Quick notes")
-               "* TODO [#C] %?\n %(zilongshanren/retrieve-chrome-current-tab-url)\n %i\n %U"
+              ("n" "Notes" entry (file+headline org-agenda-file-note "Quick Notes")
+               "* %?       :Note:\n %i\n %U"
                :empty-lines 1)
-              ("l" "links" entry (file+headline org-agenda-file-note "Quick notes")
-               "* TODO [#C] %?\n  %i\n %a \n %U"
+              ("t" "Task" entry (file+headline org-agenda-file-task "Life Habbit")
+               "* TODO %?       :Life:\n %i\n"
                :empty-lines 1)
-              ("j" "Journal Entry"
-               entry (file+datetree org-agenda-file-journal)
+              ("i" "Idea" entry (file+headline org-agenda-file-note "Ideas")
+               "* %?       :Idea:\n %i\n %U"
+               :empty-lines 1)
+              ("c" "Code Snippet" entry
+               (file org-agenda-file-code-snippet)
+               "* %?\t%^g\n#+BEGIN_SRC %^{language}\n\n#+END_SRC")
+              ;; ("s" "Safari" entry (file+headline org-agenda-file-note "Bookmark Links")
+              ;;  "* TODO [#C] %?\n %(oucb/retrieve-safari-current-tab-url)\n %i\n %U"
+              ;;  :empty-lines 1)
+              ("l" "Links" entry (file+headline org-agenda-file-note "Bookmark Links")
+               "* TODO [#C] %?       :Link:\n  %i\n %a \n %U"
+               :empty-lines 1)
+              ("m" "Check movie" entry (file+headline org-agenda-file-check "Movies")
+               "* %? %^g"
+               :empty-lines 1)
+              ("r" "Read book" entry (file+headline org-agenda-file-check "Books")
+               "* %^{book name} by %^{author} %^g"
+               :empty-lines 1)
+              ("b" "Billing" plain (file+function org-agenda-file-billing find-month-tree)
+               " | %U | %^{类别} | %^{描述} | %^{金额} |"
+               :kill-buffer t)
+              ("j" "Journal Entry" entry (file+datetree org-agenda-file-journal)
                "* %?"
-               :empty-lines 1)))
+               :empty-lines 1)
+              ;; ("p" "Passwords" entry (file "~/OneDrive/org-notes/passwords.org.cpt")
+              ;;  "* %U - %^{title} %^G\n\n  - 用户名: %^{用户名}\n  - 密码: %(get-or-create-password)"
+              ;;  :empty-lines 1 :kill-buffer t)
+              ))
 
       ;;An entry without a cookie is treated just like priority ' B '.
       ;;So when create new task, they are default 重要且紧急
@@ -257,10 +330,12 @@ unwanted space when exporting org-mode to html."
               ("wa" "重要且紧急的任务" tags-todo "+PRIORITY=\"A\"")
               ("wb" "重要且不紧急的任务" tags-todo "-Weekly-Monthly-Daily+PRIORITY=\"B\"")
               ("wc" "不重要且紧急的任务" tags-todo "+PRIORITY=\"C\"")
-              ("b" "Blog" tags-todo "BLOG")
               ("p" . "项目安排")
-              ("pw" tags-todo "PROJECT+WORK+CATEGORY=\"cocos2d-x\"")
-              ("pl" tags-todo "PROJECT+DREAM+CATEGORY=\"zilongshanren\"")
+              ("pw" tags-todo "PROJECT+WORK+CATEGORY=\"emq\"")
+              ("pl" tags-todo "PROJECT+DREAM+CATEGORY=\"oucb\"")
+              ("i" "Ideas" tags "Idea")
+              ("n" "Notes" tags "Note")
+              ("l" "Links" tags-todo "Link")
               ("W" "Weekly Review"
                ((stuck "") ;; review stuck projects as designated by org-stuck-projects
                 (tags-todo "PROJECT") ;; review all projects (assuming you use todo keywords to designate projects)
@@ -312,7 +387,7 @@ unwanted space when exporting org-mode to html."
 
 
       (add-hook 'org-after-todo-statistics-hook 'oucb/org-summary-todo)
-      ;; used by zilong/org-clock-sum-today-by-tags
+      ;;  used by oucb/org-clock-sum-today-by-tags
 
       (define-key org-mode-map (kbd "s-p") 'org-priority)
       (spacemacs/set-leader-keys-for-major-mode 'org-mode
@@ -410,8 +485,8 @@ holding contextual information."
                   (define-key org-mode-map (kbd "C-c g") 'org-mac-grab-link))))
     :defer t))
 
-;(defun oucb-org/post-init-ox-reveal ()
-;  (setq org-reveal-root "file:///Users/guanghui/.emacs.d/reveal-js"))
+;; (defun oucb-org/post-init-ox-reveal ()
+;;   (setq org-reveal-root "file:///Users/guanghui/.emacs.d/reveal-js"))
 
 
 (defun oucb-org/init-org-tree-slide ()
@@ -443,4 +518,9 @@ holding contextual information."
     (setq deft-recursive t)
     (setq deft-extension "org")
     (setq deft-directory deft-dir)))
+
+(defun oucb-org/init-sound-wav ()
+  (use-package sound-wav
+    :defer t
+    :init))
 ;;; packages.el ends here
