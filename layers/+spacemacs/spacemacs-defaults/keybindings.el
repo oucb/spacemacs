@@ -144,7 +144,7 @@
 ;; ---------------------------------------------------------------------------
 
 ;; Universal argument ---------------------------------------------------------
-(spacemacs/set-leader-keys "u" 'universal-argument)
+(spacemacs/set-leader-keys "ou" 'universal-argument)
 (when (memq dotspacemacs-editing-style '(vim hybrid))
   (define-key universal-argument-map
     (kbd (concat dotspacemacs-leader-key " u"))

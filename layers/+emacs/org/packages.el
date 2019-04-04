@@ -710,7 +710,7 @@ Headline^^            Visit entry^^               Filter^^                    Da
         "aop" 'org-projectile/capture
         "po" 'org-projectile/goto-todos)
       (with-eval-after-load 'org-capture
-        (require 'org-projectile)))
+	      (require 'org-projectile)))
     :config
     (if (file-name-absolute-p org-projectile-file)
         (progn
