@@ -152,7 +152,7 @@
       (spacemacs/set-leader-keys
         "a'" 'spacemacs/ivy-available-repls
         "fr" 'counsel-recentf
-        "ri" 'ivy-resume
+        "rl" 'ivy-resume
         "bb" 'ivy-switch-buffer)
 
       ;; custom actions for recentf
