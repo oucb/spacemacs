@@ -18,7 +18,6 @@
     org-pomodoro
     deft
     sound-wav
-    ox-freemind
     ;; (blog-admin :location (recipe
     ;;                        :fetcher github
     ;;                        :repo "codefalling/blog-admin"))
